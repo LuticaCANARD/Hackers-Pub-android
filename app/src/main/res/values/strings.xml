@@ -97,7 +97,9 @@
     <string name="notification_mention">mentioned you</string>
     <string name="notification_reply">replied to your post</string>
     <string name="notification_quote">quoted your post</string>
+    <string name="notification_quoted_post_updated">updated a post you quoted</string>
     <string name="notification_share">shared your post</string>
+    <string name="notification_shared_post_updated">updated a post you shared</string>
     <string name="notification_react">reacted to your post</string>
     <string name="notification_react_with_emoji">reacted to your post with %1$s</string>
     <plurals name="notification_and_others">

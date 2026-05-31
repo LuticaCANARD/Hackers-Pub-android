@@ -135,7 +135,9 @@ class NotificationWorker @AssistedInject constructor(
             is Notification.Mention -> "$actorName mentioned you"
             is Notification.Reply -> "$actorName replied to your post"
             is Notification.Quote -> "$actorName quoted your post"
+            is Notification.QuotedPostUpdated -> "$actorName updated a post you quoted"
             is Notification.Share -> "$actorName shared your post"
+            is Notification.SharedPostUpdated -> "$actorName updated a post you shared"
             is Notification.React -> {
                 val othersCount = notification.actors.size - 1
                 val othersText = if (othersCount > 0) {
