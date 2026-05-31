@@ -5,6 +5,7 @@ import androidx.paging.PagingConfig
 import androidx.paging.PagingSource
 import androidx.paging.PagingState
 import pub.hackers.android.data.repository.HackersPubRepository
+import pub.hackers.android.domain.model.NewsOrder
 
 /**
  * Shape common to every cursor-based paginated endpoint in this codebase.
@@ -106,6 +107,12 @@ suspend fun HackersPubRepository.localTimelinePage(
     languages: List<String> = emptyList(),
 ) = getLocalTimeline(after = after, refresh = (after == null), languages = languages)
         .map { CursorPage(it.posts, it.endCursor, it.hasNextPage, it.startCursor, it.hasPreviousPage) }
+
+suspend fun HackersPubRepository.newsStoriesPage(
+    after: String?,
+    order: NewsOrder,
+) = getNewsStories(after = after, refresh = (after == null), order = order)
+    .map { CursorPage(it.stories, it.endCursor, it.hasNextPage, it.startCursor, it.hasPreviousPage) }
 
 suspend fun HackersPubRepository.postRepliesPage(postId: String, after: String?) =
     getPostReplies(postId, after)

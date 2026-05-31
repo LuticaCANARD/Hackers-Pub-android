@@ -141,6 +141,35 @@ fragment SharedPostFields on Post {
     }
 }
 
+fragment NewsStoryFields on PostLink {
+    id
+    uuid
+    title
+    description
+    url
+    siteName
+    author
+    score
+    postCount
+    discussionCount
+    firstSharedAt
+    latestActivityAt
+    sourceBreakdown {
+        local
+        remote
+        bluesky
+    }
+    image {
+        url
+        alt
+        width
+        height
+    }
+    creator {
+        ...ActorFields
+    }
+}
+
 query PublicTimeline($first: Int, $after: String, $before: String, $last: Int, $languages: [Locale!]) {
     publicTimeline(first: $first, after: $after, before: $before, last: $last, languages: $languages) {
         edges {
@@ -198,6 +227,23 @@ query PersonalTimeline($first: Int, $after: String, $before: String, $last: Int,
                 sharedPost {
                     ...SharedPostFields
                 }
+            }
+        }
+        pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+        }
+    }
+}
+
+query NewsStories($first: Int, $after: String, $order: NewsOrder) {
+    newsStories(first: $first, after: $after, order: $order) {
+        edges {
+            cursor
+            node {
+                ...NewsStoryFields
             }
         }
         pageInfo {

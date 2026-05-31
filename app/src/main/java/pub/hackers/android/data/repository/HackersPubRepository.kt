@@ -48,6 +48,7 @@ import pub.hackers.android.graphql.LoginByUsernameMutation
 import pub.hackers.android.graphql.MarkNotificationsAsReadMutation
 import pub.hackers.android.graphql.MediumGeneratedAltTextQuery
 import pub.hackers.android.graphql.NotificationsQuery
+import pub.hackers.android.graphql.NewsStoriesQuery
 import pub.hackers.android.graphql.PersonalTimelineQuery
 import pub.hackers.android.graphql.PinPostMutation
 import pub.hackers.android.graphql.PostQuotesQuery
@@ -81,10 +82,12 @@ import pub.hackers.android.graphql.UpdateNoteMutation
 import pub.hackers.android.graphql.ViewerQuery
 import pub.hackers.android.graphql.type.AccountLinkInput
 import pub.hackers.android.graphql.type.CreateNoteMediumInput
+import pub.hackers.android.graphql.type.NewsOrder as GqlNewsOrder
 import pub.hackers.android.graphql.type.UpdateAccountInput
 import pub.hackers.android.graphql.fragment.ActorFields
 import pub.hackers.android.graphql.fragment.EngagementStatsFields
 import pub.hackers.android.graphql.fragment.MediaFields
+import pub.hackers.android.graphql.fragment.NewsStoryFields
 import pub.hackers.android.graphql.fragment.PostFields
 import pub.hackers.android.graphql.fragment.SharedPostFields
 import pub.hackers.android.graphql.type.PostVisibility as GqlPostVisibility
@@ -224,6 +227,45 @@ class HackersPubRepository @Inject constructor(
                                     sharersCount = edge.sharersCount
                                 )
                             } ?: emptyList(),
+                            hasNextPage = data?.pageInfo?.hasNextPage ?: false,
+                            endCursor = data?.pageInfo?.endCursor,
+                            hasPreviousPage = data?.pageInfo?.hasPreviousPage ?: false,
+                            startCursor = data?.pageInfo?.startCursor,
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getNewsStories(
+        after: String? = null,
+        refresh: Boolean = false,
+        order: NewsOrder = NewsOrder.POPULAR,
+    ): Result<NewsStoriesResult> {
+        return try {
+            val response = apolloClient.query(
+                NewsStoriesQuery(
+                    first = Optional.present(20),
+                    after = Optional.presentIfNotNull(after),
+                    order = Optional.present(order.toGqlNewsOrder()),
+                )
+            )
+                .apply { if (refresh) fetchPolicy(FetchPolicy.NetworkOnly) }
+                .execute()
+
+            if (response.hasErrors()) {
+                Result.failure(Exception(response.errors?.firstOrNull()?.message ?: "Unknown error"))
+            } else {
+                val data = response.data?.newsStories
+                withContext(Dispatchers.Default) {
+                    Result.success(
+                        NewsStoriesResult(
+                            stories = data?.edges?.map { edge ->
+                                edge.node.newsStoryFields.toNewsStory()
+                            }?.distinctBy { it.id } ?: emptyList(),
                             hasNextPage = data?.pageInfo?.hasNextPage ?: false,
                             endCursor = data?.pageInfo?.endCursor,
                             hasPreviousPage = data?.pageInfo?.hasPreviousPage ?: false,
@@ -1796,6 +1838,37 @@ class HackersPubRepository @Inject constructor(
     }
 
     // Extension functions to convert GraphQL fragment types to domain models
+    private fun NewsStoryFields.toNewsStory(): NewsStory {
+        return NewsStory(
+            id = id,
+            uuid = uuid.toString(),
+            title = title,
+            description = description,
+            url = url.toString(),
+            siteName = siteName,
+            author = author,
+            image = image?.let { img ->
+                PostLinkImage(
+                    url = img.url.toString(),
+                    alt = img.alt,
+                    width = img.width,
+                    height = img.height,
+                )
+            },
+            creator = creator?.actorFields?.toActor(),
+            score = score,
+            postCount = postCount,
+            discussionCount = discussionCount,
+            firstSharedAt = firstSharedAt?.let { Instant.parse(it.toString()) },
+            latestActivityAt = latestActivityAt?.let { Instant.parse(it.toString()) },
+            sourceBreakdown = NewsSourceBreakdown(
+                local = sourceBreakdown.local,
+                remote = sourceBreakdown.remote,
+                bluesky = sourceBreakdown.bluesky,
+            ),
+        )
+    }
+
     private fun PostFields.toPost(
         sharedPost: Post? = null,
         replyTarget: Post? = null,
@@ -1908,6 +1981,14 @@ class HackersPubRepository @Inject constructor(
             GqlQuotePolicy.FOLLOWERS -> QuotePolicy.FOLLOWERS
             GqlQuotePolicy.SELF -> QuotePolicy.SELF
             GqlQuotePolicy.UNKNOWN__ -> QuotePolicy.EVERYONE
+        }
+    }
+
+    private fun NewsOrder.toGqlNewsOrder(): GqlNewsOrder {
+        return when (this) {
+            NewsOrder.POPULAR -> GqlNewsOrder.POPULAR
+            NewsOrder.NEWEST -> GqlNewsOrder.NEWEST
+            NewsOrder.ALL_TIME -> GqlNewsOrder.ALL_TIME
         }
     }
 
