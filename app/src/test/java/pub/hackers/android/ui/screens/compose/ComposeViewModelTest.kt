@@ -2,6 +2,7 @@ package pub.hackers.android.ui.screens.compose
 
 import android.content.Context
 import io.mockk.coEvery
+import io.mockk.coVerify
 import io.mockk.mockk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -18,6 +19,8 @@ import pub.hackers.android.domain.model.Actor
 import pub.hackers.android.domain.model.EngagementStats
 import pub.hackers.android.domain.model.Post
 import pub.hackers.android.domain.model.PostDetailResult
+import pub.hackers.android.domain.model.PostVisibility
+import pub.hackers.android.domain.model.QuotePolicy
 import pub.hackers.android.testutil.MainDispatcherRule
 import java.time.Instant
 
@@ -115,5 +118,74 @@ class ComposeViewModelTest {
         advanceUntilIdle()
 
         assertEquals("user typed this", vm.uiState.value.content)
+    }
+
+    @Test
+    fun `post sends selected quote policy for public notes`() = runTest {
+        val createdPost = samplePost(id = "created")
+        coEvery {
+            repository.createNote(
+                content = "hello",
+                language = any(),
+                visibility = PostVisibility.PUBLIC,
+                quotePolicy = QuotePolicy.FOLLOWERS,
+                replyTargetId = null,
+                quotedPostId = null,
+            )
+        } returns Result.success(createdPost)
+
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.updateContent("hello")
+        vm.updateQuotePolicy(QuotePolicy.FOLLOWERS)
+        vm.post()
+        advanceUntilIdle()
+
+        coVerify {
+            repository.createNote(
+                content = "hello",
+                language = any(),
+                visibility = PostVisibility.PUBLIC,
+                quotePolicy = QuotePolicy.FOLLOWERS,
+                replyTargetId = null,
+                quotedPostId = null,
+            )
+        }
+    }
+
+    @Test
+    fun `post clamps quote policy to self for followers-only notes`() = runTest {
+        val createdPost = samplePost(id = "created")
+        coEvery {
+            repository.createNote(
+                content = "hello",
+                language = any(),
+                visibility = PostVisibility.FOLLOWERS,
+                quotePolicy = QuotePolicy.SELF,
+                replyTargetId = null,
+                quotedPostId = null,
+            )
+        } returns Result.success(createdPost)
+
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.updateContent("hello")
+        vm.updateQuotePolicy(QuotePolicy.EVERYONE)
+        vm.updateVisibility(PostVisibility.FOLLOWERS)
+        vm.post()
+        advanceUntilIdle()
+
+        coVerify {
+            repository.createNote(
+                content = "hello",
+                language = any(),
+                visibility = PostVisibility.FOLLOWERS,
+                quotePolicy = QuotePolicy.SELF,
+                replyTargetId = null,
+                quotedPostId = null,
+            )
+        }
     }
 }
