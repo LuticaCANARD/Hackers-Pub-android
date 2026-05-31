@@ -456,6 +456,8 @@ type Article implements Node & Post & Reactable {
 
   publishedYear: Int!
 
+  quotePolicy: QuotePolicy!
+
   quotedPost: Post
 
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
@@ -483,6 +485,10 @@ type Article implements Node & Post & Reactable {
   url: URL
 
   uuid: UUID!
+
+  viewerCanQuote: Boolean!
+
+  viewerCanRevokeQuote: Boolean!
 
   viewerHasBookmarked: Boolean!
 
@@ -585,6 +591,8 @@ input CreateNoteInput {
   content: Markdown!
 
   language: Locale!
+
+  quotePolicy: QuotePolicy
 
   quotedPostId: ID
 
@@ -1011,6 +1019,8 @@ type Note implements Node & Post & Reactable {
 
   published: DateTime!
 
+  quotePolicy: QuotePolicy!
+
   quotedPost: Post
 
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
@@ -1034,6 +1044,10 @@ type Note implements Node & Post & Reactable {
   url: URL
 
   uuid: UUID!
+
+  viewerCanQuote: Boolean!
+
+  viewerCanRevokeQuote: Boolean!
 
   viewerHasBookmarked: Boolean!
 
@@ -1209,6 +1223,8 @@ interface Post implements Node & Reactable {
 
   published: DateTime!
 
+  quotePolicy: QuotePolicy!
+
   quotedPost: Post
 
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
@@ -1232,6 +1248,10 @@ interface Post implements Node & Reactable {
   url: URL
 
   uuid: UUID!
+
+  viewerCanQuote: Boolean!
+
+  viewerCanRevokeQuote: Boolean!
 
   viewerHasBookmarked: Boolean!
 
@@ -1372,6 +1392,14 @@ enum PostVisibility {
   UNLISTED
 }
 
+enum QuotePolicy {
+  EVERYONE
+
+  FOLLOWERS
+
+  SELF
+}
+
 input PublishArticleDraftInput {
   allowLlmTranslation: Boolean
 
@@ -1380,6 +1408,8 @@ input PublishArticleDraftInput {
   id: ID!
 
   language: Locale!
+
+  quotePolicy: QuotePolicy
 
   slug: String!
 }
@@ -1548,6 +1578,8 @@ type Question implements Node & Post & Reactable {
 
   published: DateTime!
 
+  quotePolicy: QuotePolicy!
+
   quotedPost: Post
 
   quotes(after: String, before: String, first: Int, last: Int): PostQuotesConnection!
@@ -1571,6 +1603,10 @@ type Question implements Node & Post & Reactable {
   url: URL
 
   uuid: UUID!
+
+  viewerCanQuote: Boolean!
+
+  viewerCanRevokeQuote: Boolean!
 
   viewerHasBookmarked: Boolean!
 

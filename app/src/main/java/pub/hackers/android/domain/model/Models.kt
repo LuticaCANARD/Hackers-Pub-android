@@ -79,6 +79,7 @@ data class Post(
     val iri: String? = null,
     val viewerHasShared: Boolean,
     val viewerHasBookmarked: Boolean = false,
+    val viewerCanQuote: Boolean = true,
     val actor: Actor,
     val media: List<Media>,
     val link: PostLink? = null,
@@ -90,11 +91,16 @@ data class Post(
     val replyTarget: Post? = null,
     val quotedPost: Post? = null,
     val visibility: PostVisibility = PostVisibility.PUBLIC,
+    val quotePolicy: QuotePolicy = QuotePolicy.EVERYONE,
     val reactionGroups: List<ReactionGroup> = emptyList()
 )
 
 enum class PostVisibility {
     PUBLIC, UNLISTED, FOLLOWERS, DIRECT, NONE
+}
+
+enum class QuotePolicy {
+    EVERYONE, FOLLOWERS, SELF
 }
 
 @Immutable
