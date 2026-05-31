@@ -42,6 +42,7 @@
     <!-- Compose -->
     <string name="compose">Compose</string>
     <string name="compose_hint">What\'s on your mind?</string>
+    <string name="compose_language_label">Language</string>
     <string name="post">Post</string>
     <string name="cancel">Cancel</string>
     <string name="compose_edit">Edit</string>

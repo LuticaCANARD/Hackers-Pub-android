@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.AutoFixHigh
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.Group
+import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -79,6 +80,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
@@ -101,6 +103,7 @@ import pub.hackers.android.ui.theme.AppShapes
 import pub.hackers.android.ui.theme.LocalAppColors
 import pub.hackers.android.ui.theme.LocalAppTypography
 import kotlin.math.roundToInt
+import java.util.Locale
 
 private data class MentionPopupPositionInputs(
     val scrollY: Int,
@@ -145,6 +148,7 @@ fun ComposeScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     var showVisibilityMenu by remember { mutableStateOf(false) }
     var showQuotePolicyMenu by remember { mutableStateOf(false) }
+    var showLanguageMenu by remember { mutableStateOf(false) }
     val quotePolicyLocked = uiState.visibility != PostVisibility.PUBLIC &&
         uiState.visibility != PostVisibility.UNLISTED
     val effectiveQuotePolicy = if (quotePolicyLocked) QuotePolicy.SELF else uiState.quotePolicy
@@ -254,7 +258,10 @@ fun ComposeScreen(
             attachment.altText.isNotBlank() &&
             attachment.error == null
     }
-    val postEnabled = uiState.content.isNotBlank() && !uiState.isPosting && mediaReady
+    val postEnabled = uiState.content.isNotBlank() &&
+        uiState.language.isNotBlank() &&
+        !uiState.isPosting &&
+        mediaReady
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -572,6 +579,64 @@ fun ComposeScreen(
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    val languageOptions = remember(uiState.language, uiState.suggestedLanguages) {
+                        (listOf(uiState.language) + uiState.suggestedLanguages)
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() }
+                            .distinct()
+                    }
+                    TextButton(
+                        onClick = { showLanguageMenu = true },
+                        enabled = !uiState.isPosting && languageOptions.isNotEmpty(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Language,
+                            contentDescription = stringResource(R.string.compose_language_label),
+                            tint = colors.textSecondary,
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = uiState.language.ifBlank {
+                                stringResource(R.string.compose_language_label)
+                            },
+                            color = colors.textSecondary,
+                            style = typography.labelMedium,
+                            maxLines = 1,
+                        )
+                        Icon(
+                            imageVector = Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = colors.textSecondary,
+                            modifier = Modifier.size(18.dp),
+                        )
+
+                        DropdownMenu(
+                            expanded = showLanguageMenu,
+                            onDismissRequest = { showLanguageMenu = false },
+                        ) {
+                            languageOptions.forEach { language ->
+                                DropdownMenuItem(
+                                    text = { Text(languageOptionLabel(language)) },
+                                    leadingIcon = {
+                                        if (language == uiState.language) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        viewModel.updateLanguage(language)
+                                        showLanguageMenu = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     Button(
                         onClick = { viewModel.post() },
                         enabled = postEnabled,
@@ -607,6 +672,29 @@ fun ComposeScreen(
                     selectedAttachmentId = null
                 },
             )
+        }
+    }
+
+}
+
+@Composable
+private fun languageOptionLabel(language: String): String {
+    val configuration = LocalConfiguration.current
+    val uiLocale = remember(configuration) {
+        if (configuration.locales.size() > 0) {
+            configuration.locales[0]
+        } else {
+            Locale.getDefault()
+        }
+    }
+    return remember(language, uiLocale) {
+        val locale = Locale.forLanguageTag(language)
+        val nativeName = locale.getDisplayLanguage(locale).ifBlank { language }
+        val uiName = locale.getDisplayLanguage(uiLocale).ifBlank { language }
+        if (nativeName.equals(uiName, ignoreCase = true)) {
+            "$nativeName ($language)"
+        } else {
+            "$nativeName ($uiName, $language)"
         }
     }
 }

@@ -158,6 +158,41 @@ class ComposeViewModelTest {
     }
 
     @Test
+    fun `updateLanguage normalizes tag and post uses selected language`() = runTest {
+        val createdPost = samplePost(id = "created")
+        coEvery {
+            repository.createNote(
+                content = "bonjour",
+                language = "fr-CA",
+                visibility = PostVisibility.PUBLIC,
+                quotePolicy = QuotePolicy.EVERYONE,
+                replyTargetId = null,
+                quotedPostId = null,
+            )
+        } returns Result.success(createdPost)
+
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.updateContent("bonjour")
+        vm.updateLanguage(" fr_CA ")
+        vm.post()
+        advanceUntilIdle()
+
+        assertEquals("fr-CA", vm.uiState.value.language)
+        coVerify {
+            repository.createNote(
+                content = "bonjour",
+                language = "fr-CA",
+                visibility = PostVisibility.PUBLIC,
+                quotePolicy = QuotePolicy.EVERYONE,
+                replyTargetId = null,
+                quotedPostId = null,
+            )
+        }
+    }
+
+    @Test
     fun `post clamps quote policy to self for followers-only notes`() = runTest {
         val createdPost = samplePost(id = "created")
         coEvery {

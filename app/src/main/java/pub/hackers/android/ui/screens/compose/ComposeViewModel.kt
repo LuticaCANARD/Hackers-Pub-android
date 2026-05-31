@@ -48,6 +48,8 @@ data class ComposeUiState(
     val content: String = "",
     val cursorPosition: Int = 0,
     val language: String = java.util.Locale.getDefault().language,
+    val isLanguageManuallySet: Boolean = false,
+    val suggestedLanguages: List<String> = emptyList(),
     val visibility: PostVisibility = PostVisibility.PUBLIC,
     val quotePolicy: QuotePolicy = QuotePolicy.EVERYONE,
     val replyToId: String? = null,
@@ -95,6 +97,8 @@ class ComposeViewModel @Inject constructor(
             }
         }
 
+        loadSuggestedLanguages()
+
         // Setup debounced mention search
         viewModelScope.launch {
             mentionQueryFlow
@@ -127,6 +131,16 @@ class ComposeViewModel @Inject constructor(
                     )
                 }
             }
+    }
+
+    private fun loadSuggestedLanguages() {
+        viewModelScope.launch {
+            runCatching {
+                repository.getSuggestedFilterLanguages().onSuccess { languages ->
+                    _uiState.update { it.copy(suggestedLanguages = languages) }
+                }
+            }
+        }
     }
 
     private fun detectMentionTrigger(content: String, cursorPosition: Int) {
@@ -295,7 +309,17 @@ class ComposeViewModel @Inject constructor(
         detectLanguage(content)
     }
 
+    fun updateLanguage(language: String) {
+        _uiState.update {
+            it.copy(
+                language = language.trim().replace('_', '-'),
+                isLanguageManuallySet = true,
+            )
+        }
+    }
+
     private fun detectLanguage(text: String) {
+        if (_uiState.value.isLanguageManuallySet) return
         if (text.isBlank() || text.length < 20) return
 
         try {
