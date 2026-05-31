@@ -492,6 +492,8 @@ type Article implements Node & Post & Reactable {
 
   viewerHasBookmarked: Boolean!
 
+  viewerHasPinned: Boolean!
+
   viewerHasShared: Boolean!
 
   visibility: PostVisibility!
@@ -940,6 +942,20 @@ type MediumUploadHeader {
   value: String!
 }
 
+input PinPostInput {
+  clientMutationId: ID
+
+  postId: ID!
+}
+
+type PinPostPayload {
+  clientMutationId: ID
+
+  post: Post!
+}
+
+union PinPostResult = InvalidInputError | NotAuthenticatedError | PinPostPayload
+
 type MentionNotification implements Node & Notification {
   account: Account!
 
@@ -994,6 +1010,8 @@ type Mutation {
 
   publishArticleDraft(input: PublishArticleDraftInput!): PublishArticleDraftResult!
 
+  pinPost(input: PinPostInput!): PinPostResult!
+
   redeemInvitationLink(email: Email!, id: UUID!, locale: Locale!, verifyUrl: URITemplate!): RedeemInvitationLinkResult!
 
   registerApnsDeviceToken(input: RegisterApnsDeviceTokenInput!): RegisterApnsDeviceTokenResult!
@@ -1024,6 +1042,8 @@ type Mutation {
   unbookmarkPost(input: UnbookmarkPostInput!): UnbookmarkPostResult!
 
   unfollowActor(input: UnfollowActorInput!): UnfollowActorResult!
+
+  unpinPost(input: UnpinPostInput!): UnpinPostResult!
 
   unregisterApnsDeviceToken(input: UnregisterApnsDeviceTokenInput!): UnregisterApnsDeviceTokenResult!
 
@@ -1104,6 +1124,8 @@ type Note implements Node & Post & Reactable {
   viewerCanRevokeQuote: Boolean!
 
   viewerHasBookmarked: Boolean!
+
+  viewerHasPinned: Boolean!
 
   viewerHasShared: Boolean!
 
@@ -1312,6 +1334,8 @@ interface Post implements Node & Reactable {
   viewerCanRevokeQuote: Boolean!
 
   viewerHasBookmarked: Boolean!
+
+  viewerHasPinned: Boolean!
 
   viewerHasShared: Boolean!
 
@@ -1669,6 +1693,8 @@ type Question implements Node & Post & Reactable {
   viewerCanRevokeQuote: Boolean!
 
   viewerHasBookmarked: Boolean!
+
+  viewerHasPinned: Boolean!
 
   viewerHasShared: Boolean!
 
@@ -2130,6 +2156,22 @@ type UnbookmarkPostPayload {
 }
 
 union UnbookmarkPostResult = InvalidInputError|NotAuthenticatedError|UnbookmarkPostPayload
+
+input UnpinPostInput {
+  clientMutationId: ID
+
+  postId: ID!
+}
+
+type UnpinPostPayload {
+  clientMutationId: ID
+
+  post: Post!
+
+  unpinnedPostId: ID!
+}
+
+union UnpinPostResult = InvalidInputError|NotAuthenticatedError|UnpinPostPayload
 
 input UnfollowActorInput {
   actorId: ID!

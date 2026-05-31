@@ -19,12 +19,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Favorite
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +69,7 @@ fun ArticleCard(
     onReactionClick: (() -> Unit)? = null,
     onReactionLongPress: (() -> Unit)? = null,
     onBookmarkClick: (() -> Unit)? = null,
+    onPinClick: ((Post) -> Unit)? = null,
     onExternalShareClick: (() -> Unit)? = null
 ) {
     val displayPost = post.sharedPost ?: post
@@ -139,6 +145,7 @@ fun ArticleCard(
                         size = AppShapes.avatarTimeline,
                         contentDescription = "Avatar",
                         onClick = { onProfileClick(displayPost.actor.handle) },
+                        isPinned = displayPost.viewerHasPinned,
                     )
 
                     Spacer(modifier = Modifier.width(12.dp))
@@ -172,6 +179,7 @@ fun ArticleCard(
                             overflow = TextOverflow.Ellipsis
                         )
                     }
+
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
@@ -238,7 +246,51 @@ fun ArticleCard(
                 onReactionClick = onReactionClick,
                 onReactionLongPress = onReactionLongPress,
                 onBookmarkClick = onBookmarkClick,
+                onPinClick = onPinClick?.takeIf { displayPost.canPinToViewerProfile() }?.let {
+                    { it(displayPost) }
+                },
                 onExternalShareClick = onExternalShareClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun PostPinActionMenu(
+    isPinned: Boolean,
+    onPinClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.more_actions),
+                tint = LocalAppColors.current.textSecondary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(stringResource(if (isPinned) R.string.unpin_post else R.string.pin_post))
+                },
+                onClick = {
+                    expanded = false
+                    onPinClick()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
             )
         }
     }
@@ -253,6 +305,7 @@ private fun ArticleEngagementBar(
     onReactionClick: (() -> Unit)?,
     onReactionLongPress: (() -> Unit)?,
     onBookmarkClick: (() -> Unit)?,
+    onPinClick: (() -> Unit)?,
     onExternalShareClick: (() -> Unit)?
 ) {
     val colors = LocalAppColors.current
@@ -304,6 +357,12 @@ private fun ArticleEngagementBar(
                     tint = if (isBookmarked) colors.bookmark else colors.textSecondary
                 )
             }
+        }
+        if (onPinClick != null) {
+            PostPinActionMenu(
+                isPinned = post.viewerHasPinned,
+                onPinClick = onPinClick,
+            )
         }
         if (onExternalShareClick != null) {
             IconButton(onClick = onExternalShareClick) {

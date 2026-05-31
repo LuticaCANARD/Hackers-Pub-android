@@ -28,6 +28,7 @@ import pub.hackers.android.data.repository.HackersPubRepository
 import pub.hackers.android.domain.model.Post
 import pub.hackers.android.domain.model.ReactionGroup
 import pub.hackers.android.ui.bookmark.BookmarkMutationCoordinator
+import pub.hackers.android.ui.components.canPinToViewerProfile
 import javax.inject.Inject
 
 data class TimelineUiState(
@@ -209,6 +210,26 @@ class TimelineViewModel @Inject constructor(
     fun toggleBookmark(post: Post) {
         val target = post.sharedPost ?: post
         bookmarkCoordinator.toggle(target.id, target.viewerHasBookmarked)
+    }
+
+    fun togglePin(post: Post) {
+        val target = post.sharedPost ?: post
+        if (!target.canPinToViewerProfile()) return
+        val shouldPin = !target.viewerHasPinned
+
+        overlayStore.mutate(target.id) { it.copy(viewerHasPinned = shouldPin) }
+        viewModelScope.launch {
+            val result = if (shouldPin) {
+                repository.pinPost(target.id)
+            } else {
+                repository.unpinPost(target.id)
+            }
+            result.onFailure {
+                overlayStore.mutate(target.id) { prev ->
+                    prev.copy(viewerHasPinned = !shouldPin)
+                }
+            }
+        }
     }
 
     /**

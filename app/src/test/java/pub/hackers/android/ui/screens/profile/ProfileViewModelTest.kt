@@ -16,8 +16,11 @@ import pub.hackers.android.data.repository.HackersPubRepository
 import pub.hackers.android.domain.model.AccountLink
 import pub.hackers.android.domain.model.Actor
 import pub.hackers.android.domain.model.ActorField
+import pub.hackers.android.domain.model.EngagementStats
+import pub.hackers.android.domain.model.Post
 import pub.hackers.android.domain.model.ProfileResult
 import pub.hackers.android.testutil.MainDispatcherRule
+import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileViewModelTest {
@@ -58,6 +61,7 @@ class ProfileViewModelTest {
         // calls (refresh = true) — MockK treats different default-arg call sites
         // as distinct signatures.
         coEvery { repository.getProfile(any(), any()) } returns Result.success(result)
+        coEvery { repository.getActorPins(any()) } returns Result.success(emptyList())
     }
 
     private fun newViewModel(): ProfileViewModel {
@@ -274,6 +278,39 @@ class ProfileViewModelTest {
 
     // endregion
 
+    // region pinning
+
+    @Test
+    fun `togglePin pins eligible owned post`() = runTest {
+        stubLoadProfile()
+        coEvery { repository.pinPost(any()) } returns Result.success(Unit)
+        val post = samplePost(actor = sampleActor.copy(isViewer = true))
+        coEvery { repository.getActorPins(any()) } returns Result.success(listOf(post.copy(viewerHasPinned = true)))
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.togglePin(post)
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { repository.pinPost("post-1") }
+        assertTrue(vm.uiState.value.pinnedPosts.any { it.id == "post-1" })
+    }
+
+    @Test
+    fun `togglePin ignores non-owned post`() = runTest {
+        stubLoadProfile()
+        val post = samplePost(actor = sampleActor.copy(isViewer = false))
+        val vm = newViewModel()
+        advanceUntilIdle()
+
+        vm.togglePin(post)
+        advanceUntilIdle()
+
+        coVerify(exactly = 0) { repository.pinPost(any()) }
+    }
+
+    // endregion
+
     // region refresh
 
     @Test
@@ -291,4 +328,24 @@ class ProfileViewModelTest {
     }
 
     // endregion
+
+    private fun samplePost(
+        actor: Actor,
+        viewerHasPinned: Boolean = false,
+    ) = Post(
+        id = "post-1",
+        typename = "Note",
+        name = null,
+        published = Instant.parse("2025-01-01T00:00:00Z"),
+        summary = null,
+        content = "<p>body</p>",
+        excerpt = "body",
+        url = null,
+        viewerHasShared = false,
+        viewerHasPinned = viewerHasPinned,
+        actor = actor,
+        media = emptyList(),
+        engagementStats = EngagementStats(replies = 0, reactions = 0, shares = 0, quotes = 0),
+        mentions = emptyList(),
+    )
 }

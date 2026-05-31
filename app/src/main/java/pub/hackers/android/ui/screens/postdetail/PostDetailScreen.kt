@@ -38,12 +38,14 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.AddReaction
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -107,6 +109,7 @@ import pub.hackers.android.R
 import pub.hackers.android.domain.model.Post
 import pub.hackers.android.domain.model.ReactionGroup
 import pub.hackers.android.domain.model.TocItem
+import pub.hackers.android.ui.components.ActorAvatar
 import pub.hackers.android.ui.components.ErrorMessage
 import pub.hackers.android.ui.components.FullScreenLoading
 import pub.hackers.android.ui.components.ContentWarningNotice
@@ -121,6 +124,7 @@ import pub.hackers.android.ui.components.QuotedPostPreview
 import pub.hackers.android.ui.components.ReactionPicker
 import pub.hackers.android.ui.components.TocList
 import pub.hackers.android.ui.components.TocPanel
+import pub.hackers.android.ui.components.canPinToViewerProfile
 import pub.hackers.android.ui.components.contentWarningText
 import pub.hackers.android.ui.components.hasContentWarning
 import androidx.compose.foundation.lazy.LazyListState
@@ -396,7 +400,11 @@ fun PostDetailScreen(
                         )
                     }
                 },
-                trailingContent = if (tocAvailable || uiState.canDelete) {
+                trailingContent = if (
+                    tocAvailable ||
+                    uiState.canDelete ||
+                    uiState.post?.canPinToViewerProfile() == true
+                ) {
                     {
                         if (tocAvailable) {
                             IconButton(onClick = { showTocSheet = true }) {
@@ -414,9 +422,12 @@ fun PostDetailScreen(
                                 )
                             }
                         }
-                        if (uiState.canDelete) {
+                        if (uiState.canDelete || uiState.post?.canPinToViewerProfile() == true) {
                             PostDetailActionMenu(
+                                canDelete = uiState.canDelete,
                                 isDeleting = uiState.isDeleting,
+                                post = uiState.post,
+                                onPinClick = { viewModel.togglePin() },
                                 onDelete = {
                                     if (confirmBeforeDelete) {
                                         showDeleteConfirmation = true
@@ -535,7 +546,10 @@ fun PostDetailScreen(
 
 @Composable
 private fun PostDetailActionMenu(
+    canDelete: Boolean,
     isDeleting: Boolean,
+    post: Post?,
+    onPinClick: () -> Unit,
     onDelete: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -553,26 +567,45 @@ private fun PostDetailActionMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            DropdownMenuItem(
-                text = {
-                    Text(
-                        text = stringResource(R.string.delete_post),
-                        color = colors.reaction
-                    )
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Filled.Delete,
-                        contentDescription = null,
-                        tint = colors.reaction
-                    )
-                },
-                onClick = {
-                    expanded = false
-                    onDelete()
-                },
-                enabled = !isDeleting
-            )
+            if (post?.canPinToViewerProfile() == true) {
+                DropdownMenuItem(
+                    text = {
+                        Text(stringResource(if (post.viewerHasPinned) R.string.unpin_post else R.string.pin_post))
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = if (post.viewerHasPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                            contentDescription = null,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onPinClick()
+                    },
+                )
+            }
+            if (canDelete) {
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            text = stringResource(R.string.delete_post),
+                            color = colors.reaction
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Filled.Delete,
+                            contentDescription = null,
+                            tint = colors.reaction
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onDelete()
+                    },
+                    enabled = !isDeleting
+                )
+            }
         }
     }
 }
@@ -671,14 +704,12 @@ internal fun PostDetailContent(
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AsyncImage(
-                        model = post.actor.avatarUrl,
+                    ActorAvatar(
+                        actor = post.actor,
+                        size = AppShapes.avatarTimeline,
                         contentDescription = null,
-                        modifier = Modifier
-                            .size(AppShapes.avatarTimeline)
-                            .clip(CircleShape)
-                            .clickable { onProfileClick(post.actor.handle) },
-                        contentScale = ContentScale.Crop
+                        onClick = { onProfileClick(post.actor.handle) },
+                        isPinned = post.viewerHasPinned,
                     )
 
                     Spacer(modifier = Modifier.width(12.dp))

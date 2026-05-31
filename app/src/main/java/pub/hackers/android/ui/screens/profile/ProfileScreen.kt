@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.RssFeed
 import androidx.compose.material.icons.outlined.Share
@@ -253,6 +254,35 @@ fun ProfileScreen(
                             )
                         }
 
+                        if (selectedTab == ProfileTab.POSTS && uiState.pinnedPosts.isNotEmpty()) {
+                            item {
+                                PinnedPostsSection(
+                                    posts = uiState.pinnedPosts,
+                                    onPostClick = onPostClick,
+                                    onProfileClick = onProfileClick,
+                                    onReplyClick = onReplyClick,
+                                    onQuoteClick = onQuoteClick,
+                                    onPinClick = { viewModel.togglePin(it) },
+                                    onExternalShareClick = { post ->
+                                        val shareUrl = post.url ?: post.iri
+                                        if (shareUrl != null) {
+                                            val sendIntent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(Intent.EXTRA_TEXT, shareUrl)
+                                                type = "text/plain"
+                                            }
+                                            context.startActivity(
+                                                Intent.createChooser(
+                                                    sendIntent,
+                                                    null
+                                                )
+                                            )
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
                         val refresh = items.loadState.refresh
                         when {
                             refresh is LoadState.Error && items.itemCount == 0 -> {
@@ -306,6 +336,7 @@ fun ProfileScreen(
                                                 post.sharedPost?.id ?: post.id
                                             )
                                         },
+                                        onPinClick = { viewModel.togglePin(it) },
                                         onReactionClick = null,
                                         onExternalShareClick = {
                                             val displayPost = post.sharedPost ?: post
@@ -341,6 +372,62 @@ fun ProfileScreen(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PinnedPostsSection(
+    posts: List<Post>,
+    onPostClick: (String) -> Unit,
+    onProfileClick: (String) -> Unit,
+    onReplyClick: (String) -> Unit,
+    onQuoteClick: (String) -> Unit,
+    onPinClick: (Post) -> Unit,
+    onExternalShareClick: (Post) -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val typography = LocalAppTypography.current
+
+    Column(
+        modifier = Modifier.padding(top = 12.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.PushPin,
+                contentDescription = null,
+                tint = colors.textSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = stringResource(R.string.pinned_posts),
+                style = typography.labelMedium,
+                color = colors.textSecondary
+            )
+        }
+
+        posts.forEach { post ->
+            PostCard(
+                post = post,
+                onClick = { onPostClick(post.sharedPost?.id ?: post.id) },
+                onProfileClick = onProfileClick,
+                onReplyClick = { onReplyClick(post.sharedPost?.id ?: post.id) },
+                onShareClick = null,
+                onQuoteClick = { onQuoteClick(post.sharedPost?.id ?: post.id) },
+                onReactionClick = null,
+                onPinClick = onPinClick,
+                onExternalShareClick = { onExternalShareClick(post.sharedPost ?: post) },
+                onQuotedPostClick = onPostClick,
+            )
+            HorizontalDivider(
+                color = colors.divider,
+                thickness = 1.dp,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
         }
     }
 }

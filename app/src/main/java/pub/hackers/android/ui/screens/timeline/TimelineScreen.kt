@@ -298,6 +298,7 @@ fun TimelineScreen(
                                             ).show()
                                             viewModel.toggleBookmark(post)
                                         },
+                                        onPinClick = { viewModel.togglePin(it) },
                                         onExternalShareClick = {
                                             val displayPost = post.sharedPost ?: post
                                             val shareUrl = displayPost.url ?: displayPost.iri
@@ -358,6 +359,7 @@ fun TimelineScreen(
                                             ).show()
                                             viewModel.toggleBookmark(post)
                                         },
+                                        onPinClick = { viewModel.togglePin(it) },
                                         onExternalShareClick = {
                                             val displayPost = post.sharedPost ?: post
                                             val shareUrl = displayPost.url ?: displayPost.iri

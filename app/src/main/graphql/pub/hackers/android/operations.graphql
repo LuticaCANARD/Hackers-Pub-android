@@ -3,6 +3,7 @@ fragment ActorFields on Actor {
     name
     handle
     avatarUrl
+    isViewer
 }
 
 fragment MediaFields on PostMedium {
@@ -35,7 +36,9 @@ fragment PostFields on Post {
     iri
     viewerHasShared
     viewerHasBookmarked
+    viewerHasPinned
     viewerCanQuote
+    visibility
     quotePolicy
     actor {
         ...ActorFields
@@ -108,7 +111,9 @@ fragment SharedPostFields on Post {
     iri
     viewerHasShared
     viewerHasBookmarked
+    viewerHasPinned
     viewerCanQuote
+    visibility
     quotePolicy
     actor {
         ...ActorFields
@@ -345,6 +350,27 @@ query ActorPosts($handle: String!, $after: String) {
     actorByHandle(handle: $handle, allowLocalHandle: true) {
         id
         posts(first: 20, after: $after) {
+            edges {
+                cursor
+                node {
+                    ...PostFields
+                    sharedPost {
+                        ...SharedPostFields
+                    }
+                }
+            }
+            pageInfo {
+                hasNextPage
+                endCursor
+            }
+        }
+    }
+}
+
+query ActorPins($handle: String!) {
+    actorByHandle(handle: $handle, allowLocalHandle: true) {
+        id
+        pins(first: 20) {
             edges {
                 cursor
                 node {
@@ -890,6 +916,41 @@ mutation DeletePost($id: ID!) {
         }
         ... on SharedPostDeletionNotAllowedError {
             inputPath
+        }
+    }
+}
+
+mutation PinPost($postId: ID!) {
+    pinPost(input: { postId: $postId }) {
+        ... on PinPostPayload {
+            post {
+                id
+                viewerHasPinned
+            }
+        }
+        ... on InvalidInputError {
+            inputPath
+        }
+        ... on NotAuthenticatedError {
+            notAuthenticated
+        }
+    }
+}
+
+mutation UnpinPost($postId: ID!) {
+    unpinPost(input: { postId: $postId }) {
+        ... on UnpinPostPayload {
+            post {
+                id
+                viewerHasPinned
+            }
+            unpinnedPostId
+        }
+        ... on InvalidInputError {
+            inputPath
+        }
+        ... on NotAuthenticatedError {
+            notAuthenticated
         }
     }
 }

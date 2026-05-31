@@ -27,6 +27,7 @@ import pub.hackers.android.graphql.ArticleDraftsQuery
 import pub.hackers.android.graphql.ActorArticlesQuery
 import pub.hackers.android.graphql.ActorByHandleQuery
 import pub.hackers.android.graphql.ActorNotesQuery
+import pub.hackers.android.graphql.ActorPinsQuery
 import pub.hackers.android.graphql.ActorPostsQuery
 import pub.hackers.android.graphql.AddReactionToPostMutation
 import pub.hackers.android.graphql.BookmarkPostMutation
@@ -48,6 +49,7 @@ import pub.hackers.android.graphql.MarkNotificationsAsReadMutation
 import pub.hackers.android.graphql.MediumGeneratedAltTextQuery
 import pub.hackers.android.graphql.NotificationsQuery
 import pub.hackers.android.graphql.PersonalTimelineQuery
+import pub.hackers.android.graphql.PinPostMutation
 import pub.hackers.android.graphql.PostQuotesQuery
 import pub.hackers.android.graphql.PostRepliesQuery
 import pub.hackers.android.graphql.PostSharesQuery
@@ -72,6 +74,7 @@ import pub.hackers.android.graphql.SuggestedFilterLanguagesQuery
 import pub.hackers.android.graphql.UnblockActorMutation
 import pub.hackers.android.graphql.UnfollowActorMutation
 import pub.hackers.android.graphql.UnbookmarkPostMutation
+import pub.hackers.android.graphql.UnpinPostMutation
 import pub.hackers.android.graphql.UnsharePostMutation
 import pub.hackers.android.graphql.UpdateAccountMutation
 import pub.hackers.android.graphql.ViewerQuery
@@ -492,7 +495,8 @@ class HackersPubRepository @Inject constructor(
                                 id = actor.id,
                                 name = actor.name?.toString(),
                                 handle = actor.handle,
-                                avatarUrl = actor.avatarUrl.toString()
+                                avatarUrl = actor.avatarUrl.toString(),
+                                isViewer = actor.isViewer,
                             ),
                             bio = actor.bio?.toString(),
                             fields = actor.fields.map { field ->
@@ -593,6 +597,29 @@ class HackersPubRepository @Inject constructor(
                             hasNextPage = posts.pageInfo.hasNextPage,
                             endCursor = posts.pageInfo.endCursor
                         )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun getActorPins(handle: String): Result<List<Post>> {
+        return try {
+            val response = apolloClient.query(ActorPinsQuery(handle)).execute()
+
+            if (response.hasErrors()) {
+                Result.failure(Exception(response.errors?.firstOrNull()?.message ?: "Unknown error"))
+            } else {
+                withContext(Dispatchers.Default) {
+                    val pins = response.data?.actorByHandle?.pins
+                        ?: return@withContext Result.failure(Exception("Actor not found"))
+
+                    Result.success(
+                        pins.edges.map { edge ->
+                            edge.node.postFields.toPost(edge.node.sharedPost?.sharedPostFields?.toPost())
+                        }.distinctBy { it.id }
                     )
                 }
             }
@@ -1505,6 +1532,48 @@ class HackersPubRepository @Inject constructor(
         }
     }
 
+    suspend fun pinPost(postId: String): Result<Unit> {
+        return try {
+            val response = apolloClient.mutation(PinPostMutation(postId)).execute()
+            if (response.hasErrors()) {
+                Result.failure(Exception(response.errors?.firstOrNull()?.message ?: "Unknown error"))
+            } else {
+                val result = response.data?.pinPost
+                when {
+                    result?.onPinPostPayload != null -> Result.success(Unit)
+                    result?.onInvalidInputError != null ->
+                        Result.failure(Exception("Invalid input: ${result.onInvalidInputError.inputPath}"))
+                    result?.onNotAuthenticatedError != null ->
+                        Result.failure(Exception("Not authenticated"))
+                    else -> Result.failure(Exception("Unknown error"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun unpinPost(postId: String): Result<Unit> {
+        return try {
+            val response = apolloClient.mutation(UnpinPostMutation(postId)).execute()
+            if (response.hasErrors()) {
+                Result.failure(Exception(response.errors?.firstOrNull()?.message ?: "Unknown error"))
+            } else {
+                val result = response.data?.unpinPost
+                when {
+                    result?.onUnpinPostPayload != null -> Result.success(Unit)
+                    result?.onInvalidInputError != null ->
+                        Result.failure(Exception("Invalid input: ${result.onInvalidInputError.inputPath}"))
+                    result?.onNotAuthenticatedError != null ->
+                        Result.failure(Exception("Not authenticated"))
+                    else -> Result.failure(Exception("Unknown error"))
+                }
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     suspend fun saveArticleDraft(
         title: String,
         content: String,
@@ -1685,7 +1754,7 @@ class HackersPubRepository @Inject constructor(
     private fun PostFields.toPost(
         sharedPost: Post? = null,
         replyTarget: Post? = null,
-        visibility: PostVisibility = PostVisibility.PUBLIC,
+        visibility: PostVisibility? = null,
         lastSharer: Actor? = null,
         sharersCount: Int = 0
     ): Post {
@@ -1702,6 +1771,7 @@ class HackersPubRepository @Inject constructor(
             iri = iri.toString(),
             viewerHasShared = viewerHasShared,
             viewerHasBookmarked = viewerHasBookmarked,
+            viewerHasPinned = viewerHasPinned,
             viewerCanQuote = viewerCanQuote,
             actor = actor.actorFields.toActor(),
             media = media.map { it.mediaFields.toMedia() },
@@ -1730,7 +1800,7 @@ class HackersPubRepository @Inject constructor(
             sharedPost = sharedPost,
             replyTarget = replyTarget,
             quotedPost = quotedPost?.sharedPostFields?.toPost(),
-            visibility = visibility,
+            visibility = visibility ?: this.visibility.toPostVisibility(),
             quotePolicy = quotePolicy.toQuotePolicy(),
             reactionGroups = reactionGroups.mapNotNull { group ->
                 when {
@@ -1772,11 +1842,13 @@ class HackersPubRepository @Inject constructor(
             iri = iri.toString(),
             viewerHasShared = viewerHasShared,
             viewerHasBookmarked = viewerHasBookmarked,
+            viewerHasPinned = viewerHasPinned,
             viewerCanQuote = viewerCanQuote,
             actor = actor.actorFields.toActor(),
             media = media.map { it.mediaFields.toMedia() },
             engagementStats = engagementStats.engagementStatsFields.toEngagementStats(),
             mentions = mentions.edges.map { it.node.handle },
+            visibility = visibility.toPostVisibility(),
             quotePolicy = quotePolicy.toQuotePolicy()
         )
     }
@@ -1795,7 +1867,8 @@ class HackersPubRepository @Inject constructor(
             id = id,
             name = name?.toString(),
             handle = handle,
-            avatarUrl = avatarUrl.toString()
+            avatarUrl = avatarUrl.toString(),
+            isViewer = isViewer,
         )
     }
 

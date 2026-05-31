@@ -39,6 +39,8 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -46,6 +48,7 @@ import androidx.compose.material.icons.outlined.Favorite
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
@@ -110,6 +113,7 @@ fun PostCard(
     onReactionClick: (() -> Unit)? = null,
     onReactionLongPress: (() -> Unit)? = null,
     onBookmarkClick: (() -> Unit)? = null,
+    onPinClick: ((Post) -> Unit)? = null,
     onExternalShareClick: (() -> Unit)? = null,
     onQuotedPostClick: ((String) -> Unit)? = null,
     contentMaxLength: Int = 0
@@ -127,6 +131,7 @@ fun PostCard(
             onReactionClick = onReactionClick,
             onReactionLongPress = onReactionLongPress,
             onBookmarkClick = onBookmarkClick,
+            onPinClick = onPinClick,
             onExternalShareClick = onExternalShareClick,
             modifier = modifier
         )
@@ -141,6 +146,7 @@ fun PostCard(
             onReactionClick = onReactionClick,
             onReactionLongPress = onReactionLongPress,
             onBookmarkClick = onBookmarkClick,
+            onPinClick = onPinClick,
             onExternalShareClick = onExternalShareClick,
             onQuotedPostClick = onQuotedPostClick,
             contentMaxLength = contentMaxLength,
@@ -161,6 +167,7 @@ private fun NoteCard(
     onReactionClick: (() -> Unit)? = null,
     onReactionLongPress: (() -> Unit)? = null,
     onBookmarkClick: (() -> Unit)? = null,
+    onPinClick: ((Post) -> Unit)? = null,
     onExternalShareClick: (() -> Unit)? = null,
     onQuotedPostClick: ((String) -> Unit)? = null,
     contentMaxLength: Int = 0
@@ -278,6 +285,7 @@ private fun NoteCard(
                 size = AppShapes.avatarTimeline,
                 contentDescription = "Avatar",
                 onClick = { onProfileClick(displayPost.actor.handle) },
+                isPinned = displayPost.viewerHasPinned,
             )
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -558,6 +566,9 @@ private fun NoteCard(
                     onReactionClick = onReactionClick,
                     onReactionLongPress = onReactionLongPress,
                     onBookmarkClick = onBookmarkClick,
+                    onPinClick = onPinClick?.takeIf { displayPost.canPinToViewerProfile() }?.let {
+                        { it(displayPost) }
+                    },
                     onExternalShareClick = onExternalShareClick
                 )
             }
@@ -575,6 +586,7 @@ private fun EngagementBar(
     onReactionClick: (() -> Unit)? = null,
     onReactionLongPress: (() -> Unit)? = null,
     onBookmarkClick: (() -> Unit)? = null,
+    onPinClick: (() -> Unit)? = null,
     onExternalShareClick: (() -> Unit)? = null
 ) {
     val colors = LocalAppColors.current
@@ -624,6 +636,14 @@ private fun EngagementBar(
 
         Spacer(modifier = Modifier.weight(1f))
 
+        if (onPinClick != null) {
+            PostPinActionMenu(
+                isPinned = post.viewerHasPinned,
+                onPinClick = onPinClick,
+                modifier = Modifier.offset(x = 14.dp),
+            )
+        }
+
         // External share — always textSecondary, offset back to align right edge
         if (onExternalShareClick != null) {
             IconButton(
@@ -637,6 +657,47 @@ private fun EngagementBar(
                     modifier = Modifier.size(20.dp)
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PostPinActionMenu(
+    isPinned: Boolean,
+    onPinClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        IconButton(onClick = { expanded = true }, modifier = Modifier.size(32.dp)) {
+            Icon(
+                imageVector = Icons.Filled.MoreVert,
+                contentDescription = stringResource(R.string.more_actions),
+                tint = LocalAppColors.current.textSecondary,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(stringResource(if (isPinned) R.string.unpin_post else R.string.pin_post))
+                },
+                onClick = {
+                    expanded = false
+                    onPinClick()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (isPinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                },
+            )
         }
     }
 }

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,9 +25,11 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import pub.hackers.android.R
 import pub.hackers.android.domain.model.Actor
 import pub.hackers.android.ui.theme.AppShapes
 import pub.hackers.android.ui.theme.LocalAppColors
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun ActorAvatar(
@@ -35,6 +40,7 @@ fun ActorAvatar(
     onClick: (() -> Unit)? = null,
     overlayActor: Actor? = null,
     overlaySize: Dp = AppShapes.avatarRepost,
+    isPinned: Boolean = false,
 ) {
     Box(
         modifier = modifier
@@ -57,6 +63,37 @@ fun ActorAvatar(
                     .offset(x = 5.dp, y = 5.dp),
             )
         }
+
+        if (isPinned) {
+            PinBadge(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 4.dp, y = (-4).dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PinBadge(
+    modifier: Modifier = Modifier,
+) {
+    val colors = LocalAppColors.current
+
+    Box(
+        modifier = modifier
+            .size(20.dp)
+            .clip(CircleShape)
+            .background(colors.surface)
+            .border(1.dp, colors.background, CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.PushPin,
+            contentDescription = stringResource(R.string.pinned),
+            tint = colors.accent,
+            modifier = Modifier.size(12.dp),
+        )
     }
 }
 

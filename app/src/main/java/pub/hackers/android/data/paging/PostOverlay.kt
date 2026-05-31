@@ -23,6 +23,7 @@ import pub.hackers.android.domain.model.ReactionGroup
 data class PostOverlay(
     val viewerHasShared: Boolean? = null,      // null = no override
     val viewerHasBookmarked: Boolean? = null,  // null = no override
+    val viewerHasPinned: Boolean? = null,      // null = no override
     val shareDelta: Int = 0,                    // added to engagementStats.shares
     val reactionOverride: List<ReactionGroup>? = null, // full replacement when we touched reactions
     val reactionCountOverride: Int? = null,     // engagementStats.reactions override
@@ -36,6 +37,7 @@ fun Post.applyOverlay(overlay: PostOverlay?): Post {
     return copy(
         viewerHasShared = overlay.viewerHasShared ?: viewerHasShared,
         viewerHasBookmarked = overlay.viewerHasBookmarked ?: viewerHasBookmarked,
+        viewerHasPinned = overlay.viewerHasPinned ?: viewerHasPinned,
         engagementStats = engagementStats.copy(
             shares = maxOf(0, engagementStats.shares + overlay.shareDelta),
             reactions = overlay.reactionCountOverride ?: engagementStats.reactions,
