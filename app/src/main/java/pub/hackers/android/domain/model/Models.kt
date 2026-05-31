@@ -9,6 +9,7 @@ data class Actor(
     val name: String?,
     val handle: String,
     val avatarUrl: String,
+    val isViewer: Boolean = false,
     val bio: String? = null
 )
 
@@ -95,6 +96,7 @@ data class Post(
     val iri: String? = null,
     val viewerHasShared: Boolean,
     val viewerHasBookmarked: Boolean = false,
+    val viewerHasPinned: Boolean = false,
     val viewerCanQuote: Boolean = true,
     val actor: Actor,
     val media: List<Media>,

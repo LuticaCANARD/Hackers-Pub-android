@@ -24,6 +24,7 @@ import pub.hackers.android.domain.model.Post
 import pub.hackers.android.domain.model.ReactionGroup
 import pub.hackers.android.domain.model.TocItem
 import pub.hackers.android.ui.bookmark.BookmarkMutationCoordinator
+import pub.hackers.android.ui.components.canPinToViewerProfile
 import pub.hackers.android.ui.screens.compose.ReplyPostedSignal
 import javax.inject.Inject
 
@@ -311,6 +312,32 @@ class PostDetailViewModel @Inject constructor(
     fun toggleBookmark() {
         val post = _uiState.value.post ?: return
         bookmarkCoordinator.toggle(post.id, post.viewerHasBookmarked)
+    }
+
+    fun togglePin() {
+        val post = _uiState.value.post ?: return
+        if (!post.canPinToViewerProfile()) return
+        val shouldPin = !post.viewerHasPinned
+
+        _uiState.update { state ->
+            state.post?.let {
+                state.copy(post = it.copy(viewerHasPinned = shouldPin))
+            } ?: state
+        }
+        viewModelScope.launch {
+            val result = if (shouldPin) {
+                repository.pinPost(post.id)
+            } else {
+                repository.unpinPost(post.id)
+            }
+            result.onFailure {
+                _uiState.update { state ->
+                    state.post?.let { current ->
+                        state.copy(post = current.copy(viewerHasPinned = !shouldPin))
+                    } ?: state
+                }
+            }
+        }
     }
 
     fun toggleReaction(emoji: String) {

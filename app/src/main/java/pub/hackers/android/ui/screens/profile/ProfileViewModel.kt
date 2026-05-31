@@ -29,6 +29,7 @@ import pub.hackers.android.domain.model.ActorField
 import pub.hackers.android.domain.model.Post
 import pub.hackers.android.domain.model.ReactionGroup
 import pub.hackers.android.ui.bookmark.BookmarkMutationCoordinator
+import pub.hackers.android.ui.components.canPinToViewerProfile
 import javax.inject.Inject
 
 enum class ProfileTab {
@@ -49,6 +50,7 @@ data class ProfileUiState(
     val viewerBlocks: Boolean = false,
     val isPerformingAction: Boolean = false,
     val actionError: String? = null,
+    val pinnedPosts: List<Post> = emptyList(),
 )
 
 @HiltViewModel
@@ -135,6 +137,7 @@ class ProfileViewModel @Inject constructor(
                             viewerBlocks = profile.viewerBlocks,
                         )
                     }
+                    loadPinnedPosts()
                 }
                 .onFailure { error ->
                     _uiState.update {
@@ -163,6 +166,7 @@ class ProfileViewModel @Inject constructor(
                             viewerBlocks = profile.viewerBlocks,
                         )
                     }
+                    loadPinnedPosts()
                 }
                 .onFailure {
                     _uiState.update { it.copy(isRefreshing = false) }
@@ -172,6 +176,15 @@ class ProfileViewModel @Inject constructor(
 
     fun selectTab(tab: ProfileTab) {
         _selectedTab.value = tab
+    }
+
+    private fun loadPinnedPosts() {
+        viewModelScope.launch {
+            repository.getActorPins(handle)
+                .onSuccess { pins ->
+                    _uiState.update { it.copy(pinnedPosts = pins) }
+                }
+        }
     }
 
     fun followActor() {
@@ -291,6 +304,43 @@ class ProfileViewModel @Inject constructor(
     fun toggleBookmark(post: Post) {
         val target = post.sharedPost ?: post
         bookmarkCoordinator.toggle(target.id, target.viewerHasBookmarked)
+    }
+
+    fun togglePin(post: Post) {
+        val target = post.sharedPost ?: post
+        if (!target.canPinToViewerProfile()) return
+        val shouldPin = !target.viewerHasPinned
+        val previousPins = _uiState.value.pinnedPosts
+
+        overlayStore.mutate(target.id) { it.copy(viewerHasPinned = shouldPin) }
+        _uiState.update { state ->
+            val updatedPins = if (shouldPin) {
+                listOf(target.copy(viewerHasPinned = true)) +
+                    state.pinnedPosts.filterNot { it.id == target.id }
+            } else {
+                state.pinnedPosts.filterNot { it.id == target.id }
+            }
+            state.copy(pinnedPosts = updatedPins)
+        }
+
+        viewModelScope.launch {
+            val result = if (shouldPin) {
+                repository.pinPost(target.id)
+            } else {
+                repository.unpinPost(target.id)
+            }
+            result
+                .onSuccess { loadPinnedPosts() }
+                .onFailure { error ->
+                    overlayStore.mutate(target.id) { it.copy(viewerHasPinned = !shouldPin) }
+                    _uiState.update {
+                        it.copy(
+                            pinnedPosts = previousPins,
+                            actionError = error.message,
+                        )
+                    }
+                }
+        }
     }
 
     @Suppress("unused")
