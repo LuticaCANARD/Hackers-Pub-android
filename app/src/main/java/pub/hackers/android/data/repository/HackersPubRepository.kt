@@ -64,6 +64,7 @@ import pub.hackers.android.graphql.fragment.MediaFields
 import pub.hackers.android.graphql.fragment.PostFields
 import pub.hackers.android.graphql.fragment.SharedPostFields
 import pub.hackers.android.graphql.type.PostVisibility as GqlPostVisibility
+import pub.hackers.android.graphql.type.QuotePolicy as GqlQuotePolicy
 import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -929,6 +930,7 @@ class HackersPubRepository @Inject constructor(
         content: String,
         language: String = "en",
         visibility: PostVisibility = PostVisibility.PUBLIC,
+        quotePolicy: QuotePolicy = QuotePolicy.EVERYONE,
         replyTargetId: String? = null,
         quotedPostId: String? = null
     ): Result<Post> {
@@ -940,12 +942,18 @@ class HackersPubRepository @Inject constructor(
                 PostVisibility.DIRECT -> GqlPostVisibility.DIRECT
                 PostVisibility.NONE -> GqlPostVisibility.NONE
             }
+            val gqlQuotePolicy = when (quotePolicy) {
+                QuotePolicy.EVERYONE -> GqlQuotePolicy.EVERYONE
+                QuotePolicy.FOLLOWERS -> GqlQuotePolicy.FOLLOWERS
+                QuotePolicy.SELF -> GqlQuotePolicy.SELF
+            }
 
             val response = apolloClient.mutation(
                 CreateNoteMutation(
                     content = content,
                     language = language,
                     visibility = gqlVisibility,
+                    quotePolicy = Optional.present(gqlQuotePolicy),
                     replyTargetId = Optional.presentIfNotNull(replyTargetId),
                     quotedPostId = Optional.presentIfNotNull(quotedPostId)
                 )
@@ -1400,15 +1408,22 @@ class HackersPubRepository @Inject constructor(
         id: String,
         slug: String,
         language: String,
-        allowLlmTranslation: Boolean = true
+        allowLlmTranslation: Boolean = true,
+        quotePolicy: QuotePolicy = QuotePolicy.EVERYONE
     ): Result<PublishedArticle> {
         return try {
+            val gqlQuotePolicy = when (quotePolicy) {
+                QuotePolicy.EVERYONE -> GqlQuotePolicy.EVERYONE
+                QuotePolicy.FOLLOWERS -> GqlQuotePolicy.FOLLOWERS
+                QuotePolicy.SELF -> GqlQuotePolicy.SELF
+            }
             val response = apolloClient.mutation(
                 PublishArticleDraftMutation(
                     id = id,
                     slug = slug,
                     language = language,
-                    allowLlmTranslation = Optional.present(allowLlmTranslation)
+                    allowLlmTranslation = Optional.present(allowLlmTranslation),
+                    quotePolicy = Optional.present(gqlQuotePolicy)
                 )
             ).execute()
 
@@ -1515,6 +1530,7 @@ class HackersPubRepository @Inject constructor(
             iri = iri.toString(),
             viewerHasShared = viewerHasShared,
             viewerHasBookmarked = viewerHasBookmarked,
+            viewerCanQuote = viewerCanQuote,
             actor = actor.actorFields.toActor(),
             media = media.map { it.mediaFields.toMedia() },
             link = link?.let { l ->
@@ -1543,6 +1559,7 @@ class HackersPubRepository @Inject constructor(
             replyTarget = replyTarget,
             quotedPost = quotedPost?.sharedPostFields?.toPost(),
             visibility = visibility,
+            quotePolicy = quotePolicy.toQuotePolicy(),
             reactionGroups = reactionGroups.mapNotNull { group ->
                 when {
                     group.onEmojiReactionGroup != null -> ReactionGroup(
@@ -1582,11 +1599,22 @@ class HackersPubRepository @Inject constructor(
             iri = iri.toString(),
             viewerHasShared = viewerHasShared,
             viewerHasBookmarked = viewerHasBookmarked,
+            viewerCanQuote = viewerCanQuote,
             actor = actor.actorFields.toActor(),
             media = media.map { it.mediaFields.toMedia() },
             engagementStats = engagementStats.engagementStatsFields.toEngagementStats(),
-            mentions = mentions.edges.map { it.node.handle }
+            mentions = mentions.edges.map { it.node.handle },
+            quotePolicy = quotePolicy.toQuotePolicy()
         )
+    }
+
+    private fun GqlQuotePolicy.toQuotePolicy(): QuotePolicy {
+        return when (this) {
+            GqlQuotePolicy.EVERYONE -> QuotePolicy.EVERYONE
+            GqlQuotePolicy.FOLLOWERS -> QuotePolicy.FOLLOWERS
+            GqlQuotePolicy.SELF -> QuotePolicy.SELF
+            GqlQuotePolicy.UNKNOWN__ -> QuotePolicy.EVERYONE
+        }
     }
 
     private fun ActorFields.toActor(): Actor {
