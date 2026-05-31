@@ -168,24 +168,38 @@ private fun NotificationItem(
             stringResource(R.string.notification_quote)
         )
 
+        is Notification.QuotedPostUpdated -> Pair(
+            Icons.Default.FormatQuote,
+            buildMultiActorActionText(
+                notification = notification,
+                actionText = stringResource(R.string.notification_quoted_post_updated)
+            )
+        )
+
         is Notification.Share -> Pair(
             Icons.Default.Repeat,
             stringResource(R.string.notification_share)
         )
 
+        is Notification.SharedPostUpdated -> Pair(
+            Icons.Default.Repeat,
+            buildMultiActorActionText(
+                notification = notification,
+                actionText = stringResource(R.string.notification_shared_post_updated)
+            )
+        )
+
         is Notification.React -> {
-            val othersCount = notification.actors.size - 1
-            val prefix = if (othersCount > 0) {
-                pluralStringResource(
-                    R.plurals.notification_and_others,
-                    othersCount,
-                    othersCount
-                ) + " "
-            } else ""
             val actionStr = if (notification.emoji != null) {
-                prefix + stringResource(R.string.notification_react_with_emoji, notification.emoji)
+                buildMultiActorActionText(
+                    notification = notification,
+                    actionText = stringResource(R.string.notification_react_with_emoji, notification.emoji)
+                )
             } else {
-                prefix + stringResource(R.string.notification_react)
+                buildMultiActorActionText(
+                    notification = notification,
+                    actionText = stringResource(R.string.notification_react)
+                )
             }
             Pair(Icons.Default.Favorite, actionStr)
         }
@@ -195,7 +209,9 @@ private fun NotificationItem(
         is Notification.Mention -> notification.post
         is Notification.Reply -> notification.post
         is Notification.Quote -> notification.post
+        is Notification.QuotedPostUpdated -> notification.post
         is Notification.Share -> notification.post
+        is Notification.SharedPostUpdated -> notification.post
         is Notification.React -> notification.post
         else -> null
     }
@@ -276,6 +292,24 @@ private fun NotificationItem(
             }
         }
     }
+}
+
+@Composable
+private fun buildMultiActorActionText(
+    notification: Notification,
+    actionText: String
+): String {
+    val othersCount = notification.actors.size - 1
+    val prefix = if (othersCount > 0) {
+        pluralStringResource(
+            R.plurals.notification_and_others,
+            othersCount,
+            othersCount
+        ) + " "
+    } else {
+        ""
+    }
+    return prefix + actionText
 }
 
 private fun formatRelativeTime(instant: Instant): String {
