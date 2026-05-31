@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
@@ -291,120 +292,126 @@ fun ComposeScreen(
                 .padding(paddingValues)
                 .imePadding()
         ) {
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
                     .padding(16.dp)
             ) {
-                // Reply target preview
-                ReplyTargetSection(
-                    isLoading = uiState.isLoadingReplyTarget,
-                    replyTargetPost = uiState.replyTargetPost,
-                )
+                val useCompactContextPreviews = maxHeight < 420.dp
 
-                Box(modifier = Modifier.weight(1f)) {
-                    // Custom text field with cursor position tracking
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .onGloballyPositioned { coordinates ->
-                                textFieldBounds = coordinates.boundsInWindow()
-                            },
-                        shape = RoundedCornerShape(4.dp),
-                        color = colors.surface,
-                        border = BorderStroke(1.dp, colors.divider)
-                    ) {
-                        Box(
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Reply target preview
+                    ReplyTargetSection(
+                        isLoading = uiState.isLoadingReplyTarget,
+                        replyTargetPost = uiState.replyTargetPost,
+                        compact = useCompactContextPreviews,
+                    )
+
+                    Box(modifier = Modifier.weight(1f)) {
+                        // Custom text field with cursor position tracking
+                        Surface(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    focusRequester.requestFocus()
-                                    keyboardController?.show()
-                                }
-                                .padding(16.dp)
-                                .verticalScroll(scrollState)
+                                .onGloballyPositioned { coordinates ->
+                                    textFieldBounds = coordinates.boundsInWindow()
+                                },
+                            shape = RoundedCornerShape(4.dp),
+                            color = colors.surface,
+                            border = BorderStroke(1.dp, colors.divider)
                         ) {
-                            BasicTextField(
-                                value = textFieldValue,
-                                onValueChange = { newValue: TextFieldValue ->
-                                    textFieldValue = newValue
-                                    viewModel.updateContent(
-                                        content = newValue.text,
-                                        cursorPosition = newValue.selection.start
-                                    )
-                                },
-                                onTextLayout = { result: TextLayoutResult ->
-                                    // Update cursor position
-                                    val cursorPos = textFieldValue.selection.start
-                                        .coerceIn(0, textFieldValue.text.length)
-                                    cursorRect =
-                                        if (textFieldValue.text.isNotEmpty() || cursorPos == 0) {
-                                            result.getCursorRect(cursorPos)
-                                        } else {
-                                            Rect.Zero
-                                        }
-                                },
+                            Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .focusRequester(focusRequester),
-                                enabled = !uiState.isPosting,
-                                textStyle = typography.bodyLarge.copy(
-                                    color = colors.textBody
-                                ),
-                                cursorBrush = SolidColor(colors.composeAccent),
-                                decorationBox = { innerTextField ->
-                                    Box {
-                                        if (textFieldValue.text.isEmpty()) {
-                                            Text(
-                                                text = stringResource(R.string.compose_hint),
-                                                style = typography.bodyLarge,
-                                                color = colors.textSecondary
-                                            )
-                                        }
-                                        innerTextField()
+                                    .fillMaxSize()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null
+                                    ) {
+                                        focusRequester.requestFocus()
+                                        keyboardController?.show()
                                     }
-                                }
-                            )
+                                    .padding(16.dp)
+                                    .verticalScroll(scrollState)
+                            ) {
+                                BasicTextField(
+                                    value = textFieldValue,
+                                    onValueChange = { newValue: TextFieldValue ->
+                                        textFieldValue = newValue
+                                        viewModel.updateContent(
+                                            content = newValue.text,
+                                            cursorPosition = newValue.selection.start
+                                        )
+                                    },
+                                    onTextLayout = { result: TextLayoutResult ->
+                                        // Update cursor position
+                                        val cursorPos = textFieldValue.selection.start
+                                            .coerceIn(0, textFieldValue.text.length)
+                                        cursorRect =
+                                            if (textFieldValue.text.isNotEmpty() || cursorPos == 0) {
+                                                result.getCursorRect(cursorPos)
+                                            } else {
+                                                Rect.Zero
+                                            }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .focusRequester(focusRequester),
+                                    enabled = !uiState.isPosting,
+                                    textStyle = typography.bodyLarge.copy(
+                                        color = colors.textBody
+                                    ),
+                                    cursorBrush = SolidColor(colors.composeAccent),
+                                    decorationBox = { innerTextField ->
+                                        Box {
+                                            if (textFieldValue.text.isEmpty()) {
+                                                Text(
+                                                    text = stringResource(R.string.compose_hint),
+                                                    style = typography.bodyLarge,
+                                                    color = colors.textSecondary
+                                                )
+                                            }
+                                            innerTextField()
+                                        }
+                                    }
+                                )
+                            }
+                        }
+
+                        // Mention autocomplete popup
+                        if (uiState.mentionSuggestions.isNotEmpty() || uiState.isLoadingMentions) {
+                            Popup(
+                                alignment = Alignment.TopStart,
+                                offset = mentionPopupOffset,
+                                properties = PopupProperties(focusable = false)
+                            ) {
+                                MentionAutocomplete(
+                                    suggestions = uiState.mentionSuggestions,
+                                    isLoading = uiState.isLoadingMentions,
+                                    onSuggestionSelected = { actor ->
+                                        val (newContent, newCursor) = viewModel.selectMention(actor)
+                                        textFieldValue = TextFieldValue(
+                                            text = newContent,
+                                            selection = TextRange(newCursor)
+                                        )
+                                    },
+                                    modifier = Modifier.width(280.dp)
+                                )
+                            }
                         }
                     }
 
-                    // Mention autocomplete popup
-                    if (uiState.mentionSuggestions.isNotEmpty() || uiState.isLoadingMentions) {
-                        Popup(
-                            alignment = Alignment.TopStart,
-                            offset = mentionPopupOffset,
-                            properties = PopupProperties(focusable = false)
-                        ) {
-                            MentionAutocomplete(
-                                suggestions = uiState.mentionSuggestions,
-                                isLoading = uiState.isLoadingMentions,
-                                onSuggestionSelected = { actor ->
-                                    val (newContent, newCursor) = viewModel.selectMention(actor)
-                                    textFieldValue = TextFieldValue(
-                                        text = newContent,
-                                        selection = TextRange(newCursor)
-                                    )
-                                },
-                                modifier = Modifier.width(280.dp)
-                            )
-                        }
-                    }
+                    MediaAttachmentSection(
+                        attachments = uiState.mediaAttachments,
+                        onRemove = viewModel::removeMediaAttachment,
+                        onAttachmentClick = { selectedAttachmentId = it },
+                    )
+
+                    // Quoted post preview
+                    QuotedPostSection(
+                        isLoading = uiState.isLoadingQuotedPost,
+                        quotedPost = uiState.quotedPost,
+                        compact = useCompactContextPreviews,
+                    )
                 }
-
-                MediaAttachmentSection(
-                    attachments = uiState.mediaAttachments,
-                    onRemove = viewModel::removeMediaAttachment,
-                    onAttachmentClick = { selectedAttachmentId = it },
-                )
-
-                // Quoted post preview
-                QuotedPostSection(
-                    isLoading = uiState.isLoadingQuotedPost,
-                    quotedPost = uiState.quotedPost,
-                )
             }
             // Close inner content Column
 
@@ -981,10 +988,14 @@ internal fun quotePolicyShortLabel(policy: QuotePolicy): String {
 @Composable
 private fun ReplyTargetPreview(
     post: Post,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val colors = LocalAppColors.current
     val typography = LocalAppTypography.current
+    val avatarSize = if (compact) 24.dp else 32.dp
+    val contentMaxLines = if (compact) 1 else 3
+    val verticalPadding = if (compact) 8.dp else 12.dp
 
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -992,14 +1003,14 @@ private fun ReplyTargetPreview(
         color = colors.surface
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = verticalPadding),
             verticalAlignment = Alignment.Top
         ) {
             AsyncImage(
                 model = post.actor.avatarUrl,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(avatarSize)
                     .clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
@@ -1017,7 +1028,7 @@ private fun ReplyTargetPreview(
                 Spacer(modifier = Modifier.height(4.dp))
                 HtmlContent(
                     html = post.content,
-                    maxLines = 3,
+                    maxLines = contentMaxLines,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1028,10 +1039,13 @@ private fun ReplyTargetPreview(
 @Composable
 private fun QuotedPostPreview(
     post: Post,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val colors = LocalAppColors.current
     val typography = LocalAppTypography.current
+    val contentMaxLines = if (compact) 1 else 3
+    val verticalPadding = if (compact) 8.dp else 12.dp
 
     Surface(
         modifier = modifier
@@ -1042,7 +1056,7 @@ private fun QuotedPostPreview(
         border = BorderStroke(1.dp, colors.divider)
     ) {
         Row(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = verticalPadding),
             verticalAlignment = Alignment.Top
         ) {
             Icon(
@@ -1076,7 +1090,7 @@ private fun QuotedPostPreview(
                 Spacer(modifier = Modifier.height(4.dp))
                 HtmlContent(
                     html = post.content,
-                    maxLines = 3,
+                    maxLines = contentMaxLines,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
@@ -1089,6 +1103,7 @@ private fun QuotedPostPreview(
 internal fun ColumnScope.ReplyTargetSection(
     isLoading: Boolean,
     replyTargetPost: Post?,
+    compact: Boolean = false,
 ) {
     when {
         isLoading -> {
@@ -1103,9 +1118,10 @@ internal fun ColumnScope.ReplyTargetSection(
         replyTargetPost != null -> {
             ReplyTargetPreview(
                 post = replyTargetPost,
-                modifier = Modifier.alpha(0.6f)
+                modifier = Modifier.alpha(0.6f),
+                compact = compact,
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(if (compact) 8.dp else 12.dp))
         }
     }
 }
@@ -1115,6 +1131,7 @@ internal fun ColumnScope.ReplyTargetSection(
 internal fun ColumnScope.QuotedPostSection(
     isLoading: Boolean,
     quotedPost: Post?,
+    compact: Boolean = false,
 ) {
     when {
         isLoading -> {
@@ -1127,8 +1144,8 @@ internal fun ColumnScope.QuotedPostSection(
         }
 
         quotedPost != null -> {
-            Spacer(modifier = Modifier.height(8.dp))
-            QuotedPostPreview(post = quotedPost)
+            Spacer(modifier = Modifier.height(if (compact) 4.dp else 8.dp))
+            QuotedPostPreview(post = quotedPost, compact = compact)
         }
     }
 }
