@@ -82,6 +82,36 @@ data class PostLink(
     val creator: Actor?
 )
 
+enum class NewsOrder {
+    POPULAR, NEWEST, ALL_TIME
+}
+
+@Immutable
+data class NewsSourceBreakdown(
+    val local: Int,
+    val remote: Int,
+    val bluesky: Int
+)
+
+@Immutable
+data class NewsStory(
+    val id: String,
+    val uuid: String,
+    val title: String?,
+    val description: String?,
+    val url: String,
+    val siteName: String?,
+    val author: String?,
+    val image: PostLinkImage?,
+    val creator: Actor?,
+    val score: Double,
+    val postCount: Int,
+    val discussionCount: Int,
+    val firstSharedAt: Instant?,
+    val latestActivityAt: Instant?,
+    val sourceBreakdown: NewsSourceBreakdown
+)
+
 @Immutable
 data class Post(
     val id: String,
@@ -272,6 +302,15 @@ data class PasskeyRegistrationResult(
 @Immutable
 data class TimelineResult(
     val posts: List<Post>,
+    val hasNextPage: Boolean,
+    val endCursor: String?,
+    val hasPreviousPage: Boolean = false,
+    val startCursor: String? = null,
+)
+
+@Immutable
+data class NewsStoriesResult(
+    val stories: List<NewsStory>,
     val hasNextPage: Boolean,
     val endCursor: String?,
     val hasPreviousPage: Boolean = false,

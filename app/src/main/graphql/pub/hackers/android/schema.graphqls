@@ -1358,6 +1358,22 @@ type PostEngagementStats {
   shares: Int!
 }
 
+enum NewsOrder {
+  ALL_TIME
+
+  NEWEST
+
+  POPULAR
+}
+
+type NewsSourceBreakdown {
+  bluesky: Int!
+
+  local: Int!
+
+  remote: Int!
+}
+
 type PostLink implements Node {
   author: String
 
@@ -1365,17 +1381,31 @@ type PostLink implements Node {
 
   description: String
 
+  discussionCount: Int!
+
+  firstSharedAt: DateTime
+
   id: ID!
 
   image: PostLinkImage
 
+  latestActivityAt: DateTime
+
+  postCount: Int!
+
+  score: Float!
+
   siteName: String
+
+  sourceBreakdown: NewsSourceBreakdown!
 
   title: String
 
   type: String
 
   url: URL!
+
+  uuid: UUID!
 }
 
 type PostLinkImage {
@@ -1545,6 +1575,8 @@ type Query {
 
   markdownGuide("The locale for the Markdown guide." locale: Locale!): Document!
 
+  newsStories(after: String, before: String, first: Int, last: Int, order: NewsOrder = POPULAR): QueryNewsStoriesConnection!
+
   node(id: ID!): Node
 
   nodes(ids: [ID!]!): [Node]!
@@ -1587,6 +1619,18 @@ type QueryBookmarksConnectionEdge {
   cursor: String!
 
   node: Post!
+}
+
+type QueryNewsStoriesConnection {
+  edges: [QueryNewsStoriesConnectionEdge!]!
+
+  pageInfo: PageInfo!
+}
+
+type QueryNewsStoriesConnectionEdge {
+  cursor: String!
+
+  node: PostLink!
 }
 
 type QueryPersonalTimelineConnection {

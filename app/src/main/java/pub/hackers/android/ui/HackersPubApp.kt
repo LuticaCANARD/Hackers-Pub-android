@@ -44,6 +44,7 @@ import pub.hackers.android.ui.screens.compose.ComposeArticleScreen
 import pub.hackers.android.ui.screens.compose.ComposeScreen
 import pub.hackers.android.ui.screens.drafts.DraftsScreen
 import pub.hackers.android.ui.screens.explore.ExploreScreen
+import pub.hackers.android.ui.screens.news.NewsScreen
 import pub.hackers.android.ui.screens.notifications.NotificationsScreen
 import pub.hackers.android.ui.screens.postdetail.PostByUrlResolverScreen
 import pub.hackers.android.ui.screens.postdetail.PostDetailScreen
@@ -69,6 +70,13 @@ sealed class Screen(
     data object Timeline : Screen(
         "timeline",
         R.string.nav_timeline,
+        Icons.Filled.Home,
+        Icons.Outlined.Home,
+        requiresAuth = true
+    )
+    data object News : Screen(
+        "news",
+        R.string.nav_news,
         Icons.Filled.Home,
         Icons.Outlined.Home,
         requiresAuth = true
@@ -175,6 +183,7 @@ fun HackersPubApp(
 
     val fontSizePercent by viewModel.preferencesManager.fontSizePercent.collectAsState(initial = 100)
     val hasUnread by viewModel.hasUnread.collectAsState()
+    var selectedHomeFeed by remember { mutableStateOf(HomeFeed.TIMELINE) }
 
     // Wait for auth state to resolve from DataStore before rendering navigation.
     // This prevents NavHost graph recreation when isLoggedIn transitions from the
@@ -239,7 +248,7 @@ fun HackersPubApp(
     val bottomNavItems = if (isLoggedIn) {
         listOf(
             BottomNavItem(
-                route = Screen.Timeline.route,
+                route = selectedHomeFeed.route,
                 label = stringResource(R.string.nav_timeline),
                 icon = Icons.Outlined.Home,
                 selectedIcon = Icons.Filled.Home,
@@ -291,20 +300,43 @@ fun HackersPubApp(
     val currentDestination = navBackStackEntry?.destination
     val currentRoute = currentDestination?.route
     val currentBaseRoute = currentRoute?.substringBefore('?')
-    val showBottomBar = bottomNavItems.any { it.route == currentBaseRoute }
+    val currentHomeFeed = HomeFeed.fromRoute(currentBaseRoute)
+    LaunchedEffect(currentHomeFeed) {
+        if (currentHomeFeed != null) {
+            selectedHomeFeed = currentHomeFeed
+        }
+    }
+    val selectedBottomRoute = currentHomeFeed?.route ?: (currentBaseRoute ?: "")
+    val showBottomBar = bottomNavItems.any { it.route == currentBaseRoute } ||
+        (isLoggedIn && currentHomeFeed != null)
+
+    fun navigateHomeFeed(feed: HomeFeed) {
+        selectedHomeFeed = feed
+        navController.navigate(feed.route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 BottomNavBar(
                     items = bottomNavItems,
-                    selectedRoute = currentBaseRoute ?: "",
+                    selectedRoute = selectedBottomRoute,
                     onItemSelected = { item ->
+                        val isHomeItem = HomeFeed.fromRoute(item.route) != null
+                        val isCurrentHome = currentHomeFeed != null
                         if (item.route == (currentBaseRoute ?: "")) {
                             // Re-tap on current tab: signal scroll-to-top / refresh
                             navController.currentBackStackEntry
                                 ?.savedStateHandle
                                 ?.set("tabRetapped", System.currentTimeMillis())
+                        } else if (isHomeItem && isCurrentHome) {
+                            navigateHomeFeed(selectedHomeFeed)
                         } else {
                             navController.navigate(item.route) {
                                 popUpTo(navController.graph.findStartDestination().id) {
@@ -332,6 +364,8 @@ fun HackersPubApp(
                     .collectAsState()
                 TimelineScreen(
                     tabRetapped = tabRetapped,
+                    selectedHomeFeed = selectedHomeFeed,
+                    onHomeFeedSelected = ::navigateHomeFeed,
                     onPostClick = { postId ->
                         navController.navigate(DetailScreen.PostDetail.createRoute(postId))
                     },
@@ -359,6 +393,16 @@ fun HackersPubApp(
                     onComposeArticleLongClick = {
                         navController.navigate(DetailScreen.Drafts.route)
                     }
+                )
+            }
+
+            composable(Screen.News.route) {
+                NewsScreen(
+                    selectedHomeFeed = selectedHomeFeed,
+                    onHomeFeedSelected = ::navigateHomeFeed,
+                    onSettingsClick = {
+                        navController.navigate(Screen.Settings.route)
+                    },
                 )
             }
 

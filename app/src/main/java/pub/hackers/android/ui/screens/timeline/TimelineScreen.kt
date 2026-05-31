@@ -47,8 +47,10 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import coil3.compose.AsyncImage
 import pub.hackers.android.R
+import pub.hackers.android.ui.HomeFeed
 import pub.hackers.android.ui.components.ErrorMessage
 import pub.hackers.android.ui.components.FullScreenLoading
+import pub.hackers.android.ui.components.HomeFeedSelector
 import pub.hackers.android.ui.components.LargeTitleHeader
 import pub.hackers.android.ui.components.LanguageFilterRow
 import pub.hackers.android.ui.components.LoadingItem
@@ -68,6 +70,8 @@ fun TimelineScreen(
     onRecommendedActorsClick: () -> Unit = {},
     onComposeArticleClick: () -> Unit = {},
     onComposeArticleLongClick: () -> Unit = {},
+    selectedHomeFeed: HomeFeed = HomeFeed.TIMELINE,
+    onHomeFeedSelected: (HomeFeed) -> Unit = {},
     tabRetapped: Long = 0L,
     userAvatarUrl: String? = null,
     viewModel: TimelineViewModel = hiltViewModel()
@@ -131,7 +135,15 @@ fun TimelineScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            LargeTitleHeader(title = stringResource(R.string.personal_timeline)) {
+            LargeTitleHeader(
+                title = stringResource(R.string.personal_timeline),
+                titleContent = {
+                    HomeFeedSelector(
+                        selectedFeed = selectedHomeFeed,
+                        onFeedSelected = onHomeFeedSelected,
+                    )
+                },
+            ) {
                 // New article button with draft badge
                 Box(
                     modifier = Modifier

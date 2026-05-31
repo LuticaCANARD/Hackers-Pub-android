@@ -2,6 +2,7 @@
 <resources>
     <!-- Navigation -->
     <string name="nav_timeline">Timeline</string>
+    <string name="nav_news">News</string>
     <string name="nav_notifications">Notifications</string>
     <string name="nav_explore">Explore</string>
     <string name="nav_search">Search</string>
@@ -34,6 +35,13 @@
     <string name="local_timeline">Hackers\' Pub</string>
     <string name="global_timeline">Fediverse</string>
     <string name="personal_timeline">Home</string>
+    <string name="home_feed_selector_expanded">Home feed selector expanded</string>
+    <string name="home_feed_selector_collapsed">Home feed selector collapsed</string>
+    <string name="news_order_popular">Popular</string>
+    <string name="news_order_newest">Newest</string>
+    <string name="news_order_all_time">All-time</string>
+    <string name="news_discussion_count">%1$d comments</string>
+    <string name="news_empty">No news stories yet</string>
     <string name="all_languages">All languages</string>
     <string name="no_posts">No posts yet</string>
     <string name="load_more">Load more</string>
