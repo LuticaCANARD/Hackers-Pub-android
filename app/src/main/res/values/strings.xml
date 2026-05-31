@@ -34,6 +34,7 @@
     <string name="local_timeline">Hackers\' Pub</string>
     <string name="global_timeline">Fediverse</string>
     <string name="personal_timeline">Home</string>
+    <string name="all_languages">All languages</string>
     <string name="no_posts">No posts yet</string>
     <string name="load_more">Load more</string>
     <string name="refresh">Refresh</string>
@@ -41,6 +42,7 @@
     <!-- Compose -->
     <string name="compose">Compose</string>
     <string name="compose_hint">What\'s on your mind?</string>
+    <string name="compose_language_label">Language</string>
     <string name="post">Post</string>
     <string name="cancel">Cancel</string>
     <string name="compose_edit">Edit</string>
